@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CRM - Grupo Mônaco</title>
+  <title>Grupo Monaco CRM</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif}
     body{background:#f4f6f9;color:#111827;padding:8px;font-size:11px}
@@ -24,8 +24,15 @@
 </head>
 <body>
 <div class="container">
-  <header><div><h1>CRM - Grupo Mônaco</h1><p class="subtitle">Meta, Diário e Acumulado — Grupo Mônaco CRM</p></div><div class="badge">Grupo Mônaco | CRM</div></header>
+  <header><div><h1>Grupo Monaco CRM</h1><p class="subtitle">Meta, Diário e Acumulado — Grupo Mônaco CRM</p></div><div class="badge">Grupo Mônaco | CRM</div></header>
   <section class="nav-tabs"><button class="nav-btn active" id="btnMeta" onclick="mostrarTela('meta')">META DYNAMO</button><button class="nav-btn diario" id="btnDiario" onclick="mostrarTela('diario')">DIÁRIO DYNAMO / ACUMULADO</button><button class="nav-btn" id="btnAtuacao" onclick="mostrarTela('atuacao')">ATUAÇÃO CRM</button></section>
+  <section class="toolbar">
+    <div><label>Painel publicado</label><button class="small" onclick="salvarPainelAtual()">Salvar painel atual</button></div>
+    <div><label>Restaurar painel</label><button class="small" onclick="document.getElementById('arquivoJsonPainel').click()">Carregar JSON</button><input id="arquivoJsonPainel" type="file" accept=".json" style="display:none"></div>
+    <div><label>Status</label><input id="statusPainel" readonly value="Pronto para uso"></div>
+    <div><label>Como publicar</label><button class="small" onclick="alert('Depois de salvar, suba o arquivo dados-dashboard.json no GitHub, junto com o index.html. Quem abrir o link verá o último painel salvo.')">Ajuda</button></div>
+    <div><label>Atualizar tela</label><button class="small" onclick="renderizar()">Recalcular</button></div>
+  </section>
   <section id="telaMeta" class="view-section">
     <section class="toolbar"><div><label>Nova unidade</label><button class="small" onclick="adicionarUnidade()">+ Adicionar</button></div><div><label>Operação</label><select id="filtroOperacao" onchange="renderizar()"><option value="todas">Todas</option><option value="Diesel">Diesel</option><option value="Fiat">Fiat / Jeep / Ram</option></select></div><div><label>Dias úteis do mês</label><input id="diasUteis" type="number" value="20" min="1" oninput="renderizar()"></div><div><label>% meta agendamento</label><input id="percentualAgendamento" type="number" value="40" min="0" max="100" oninput="renderizar()"></div><div><label>Buscar carteira</label><input id="busca" type="text" placeholder="Ex: Ananindeua" oninput="renderizar()"></div></section>
     <section class="cards"><div class="card total"><h3>Total contatos mês</h3><div class="value" id="kpiTotalContatos">0</div><div class="detail">Disparados + abertos</div></div><div class="card diesel"><h3>Total Diesel</h3><div class="value" id="kpiDiesel">0</div><div class="detail">Meta mensal Diesel</div></div><div class="card fiat"><h3>Total Fiat</h3><div class="value" id="kpiFiat">0</div><div class="detail">Fiat / Jeep / Ram</div></div><div class="card alerta"><h3>Meta agendamento</h3><div class="value" id="kpiAgendamento">0</div><div class="detail">Pelo percentual definido</div></div><div class="card total"><h3>Meta diária total</h3><div class="value" id="kpiMetaDiaria">0</div><div class="detail">Total ÷ dias úteis</div></div></section>
@@ -157,8 +164,19 @@ function renderizarDiarioOperacao(op,prefix){const d=dias(),p=perc();const arr=d
 function renderizarDiario(){const d=renderizarDiarioOperacao('Diesel','Diesel');const f=renderizarDiarioOperacao('Fiat','Fiat');const trat=d.trat+f.trat,ativo=d.ativo+f.ativo,recep=d.recep+f.recep,total=ativo+recep;document.getElementById('kpiTratDia').innerText=numero(trat);document.getElementById('kpiAtivoDia').innerText=numero(ativo);document.getElementById('kpiRecepDia').innerText=numero(recep);document.getElementById('kpiTotalDia').innerText=numero(total);document.getElementById('kpiConvDia').innerText=pct(total,trat);}
 function renderizar(){montarCabecalhosDiario();renderizarMeta();renderizarDiario();}
 window.renderizar=renderizar;
+function atualizarStatusPainel(txt){const el=document.getElementById('statusPainel');if(el)el.value=txt;}
+function dadosPublicaveis(){return{versao:1,geradoEm:new Date().toISOString(),diasDiario,arquivosDias,dadosArquivos,dadosAtendentes,dadosMeta,config:{diasUteis:document.getElementById('diasUteis')?.value||'',percentualAgendamento:document.getElementById('percentualAgendamento')?.value||'',diasTrabalhados:document.getElementById('diasTrabalhados')?.value||''}};}
+window.salvarPainelAtual=function(){const dados=dadosPublicaveis();const blob=new Blob([JSON.stringify(dados,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='dados-dashboard.json';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);atualizarStatusPainel('JSON gerado. Suba no GitHub.');};
+function aplicarPainelSalvo(payload){if(!payload)return;if(Array.isArray(payload.diasDiario))diasDiario=payload.diasDiario;if(payload.arquivosDias){Object.keys(arquivosDias).forEach(k=>{arquivosDias[k]=payload.arquivosDias[k]||[];});}
+  if(payload.dadosArquivos){['Diesel','Fiat'].forEach(op=>{dadosArquivos[op].contatos=payload.dadosArquivos?.[op]?.contatos||[];dadosArquivos[op].agenda=payload.dadosArquivos?.[op]?.agenda||[];});}
+  if(payload.dadosAtendentes){['Diesel','Fiat'].forEach(op=>{dadosAtendentes[op].splice(0,dadosAtendentes[op].length,...(payload.dadosAtendentes[op]||[]));});}
+  if(Array.isArray(payload.dadosMeta)){dadosMeta.splice(0,dadosMeta.length,...payload.dadosMeta);}
+  if(payload.config){if(document.getElementById('diasUteis'))document.getElementById('diasUteis').value=payload.config.diasUteis||document.getElementById('diasUteis').value;if(document.getElementById('percentualAgendamento'))document.getElementById('percentualAgendamento').value=payload.config.percentualAgendamento||document.getElementById('percentualAgendamento').value;if(document.getElementById('diasTrabalhados'))document.getElementById('diasTrabalhados').value=payload.config.diasTrabalhados||document.getElementById('diasTrabalhados').value;}
+  renderizar();atualizarStatusPainel('Último painel carregado.');}
+function ativarLeituraJsonPainel(){const input=document.getElementById('arquivoJsonPainel');if(!input||input.dataset.listener)return;input.addEventListener('change',()=>{const file=input.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{try{aplicarPainelSalvo(JSON.parse(e.target.result));}catch(err){alert('Não consegui ler o JSON do painel.');console.error(err);}};reader.readAsText(file);});input.dataset.listener='1';}
+async function carregarPainelPublicado(){try{const resp=await fetch('dados-dashboard.json?cache='+Date.now(),{cache:'no-store'});if(!resp.ok){atualizarStatusPainel('Sem JSON publicado ainda.');return;}const json=await resp.json();aplicarPainelSalvo(json);atualizarStatusPainel('Painel publicado carregado.');}catch(e){atualizarStatusPainel('Sem painel publicado carregado.');}}
 function runTests(){console.assert(typeof window.mostrarTela==='function','mostrarTela deve estar global');console.assert(normalizarTexto('São Luís')==='sao luis','normalizarTexto remove acento');console.assert(extrairCarteira('MONACO DIESEL - ANANINDEUA')==='Ananindeua','extrairCarteira Ananindeua');console.assert(labelDataPivot('04/mai')==='4-May','labelDataPivot mai');console.assert(pct(5,10)==='50%','pct 5/10');}
-document.addEventListener('DOMContentLoaded',()=>{ativarLeituraArquivos();renderizar();runTests();});
+document.addEventListener('DOMContentLoaded',()=>{ativarLeituraArquivos();ativarLeituraJsonPainel();renderizar();carregarPainelPublicado();runTests();});
 })();
 </script>
 </body>
